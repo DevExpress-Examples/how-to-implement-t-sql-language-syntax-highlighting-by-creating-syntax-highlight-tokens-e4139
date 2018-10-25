@@ -1,0 +1,28 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<title>How to implement T-SQL language syntax highlighting by creating Syntax Highlight Tokens manually - Developer Express Example</title>
+<style>
+html, body, form 
+{
+	font-family: Tahoma, Arial, Verdana;
+    font-size: small;
+    color: #303440;
+}
+h1 {
+	font-size: 125%;
+	font-weight: normal;
+	color: Black;
+	letter-spacing: 101%;
+}
+</style>
+</head>
+<body>
+<h1>Developer Express Example<br />How to implement T-SQL language syntax highlighting by creating Syntax Highlight Tokens manually</h1>
+<p>This example illustrates how to implement simplified syntax highlighting for the T-SQL language by registering the ISyntaxHighlightService (http://documentation.devexpress.com/#CoreLibraries/clsDevExpressXtraRichEditServicesISyntaxHighlightServicetopic). Note that we do not use the DevExpress.CodeParser library in this example. Text is parsed into tokens (a list of SyntaxHighlightToken Class (http://documentation.devexpress.com/#CoreLibraries/clsDevExpressXtraRichEditAPINativeSyntaxHighlightTokentopic) instances) manually in the CustomSyntaxHighlightService.ParseTokens() method. The resulting list is sorted (see http://www.devexpress.com/scid=Q368517) and passed to the SubDocument.ApplySyntaxHighlight Method (http://documentation.devexpress.com/#CoreLibraries/DevExpressXtraRichEditAPINativeSubDocument_ApplySyntaxHighlighttopic).
+See Also:
+http://www.devexpress.com/scid=E2993 - Syntax highlighting for C# and VB code using DevExpress CodeParser and Syntax Highlight tokens</p>
+<p>You can find sample updates and versions for different programming languages here:<br /><a href="http://www.devexpress.com/example=E4139">http://www.devexpress.com/example=E4139</a>.</p>
+</body>
+</html>
