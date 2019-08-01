@@ -5,60 +5,86 @@ Imports DevExpress.Office.Utils
 Imports DevExpress.XtraRichEdit.API.Native
 Imports DevExpress.XtraRichEdit.Services
 Imports System.Linq
+Imports System.Text.RegularExpressions
 
 Namespace RichEditSyntaxSample
 	Public Class CustomSyntaxHighlightService
 		Implements ISyntaxHighlightService
 
-		#Region "#parsetokens"
 		Private ReadOnly document As Document
-		Private defaultSettings As New SyntaxHighlightProperties() With {.ForeColor = Color.Black}
 		Private keywordSettings As New SyntaxHighlightProperties() With {.ForeColor = Color.Blue}
-		Private stringSettings As New SyntaxHighlightProperties() With {.ForeColor = Color.Green}
+		Private stringSettings As New SyntaxHighlightProperties() With {.ForeColor = Color.Red}
 
-		Private keywords() As String = { "INSERT", "SELECT", "CREATE", "TABLE", "USE", "IDENTITY", "ON", "OFF", "NOT", "NULL", "WITH", "SET" }
+		Private _keywords As Regex
+		Private _quotedString As New Regex("'([^']|'')*'")
 
 		Public Sub New(ByVal document As Document)
 			Me.document = document
+			Dim keywords() As String = { "INSERT", "SELECT", "CREATE", "TABLE", "USE", "IDENTITY", "ON", "OFF", "NOT", "NULL", "WITH", "SET", "GO", "DECLARE", "EXECUTE", "NVARCHAR", "FROM", "INTO", "VALUES" }
+			Me._keywords = New Regex("\b(" & String.Join("|", keywords.Select(Function(w) Regex.Escape(w))) & ")\b")
+		End Sub
+		Public Sub ForceExecute()
+			Execute()
+		End Sub
+		Public Sub Execute()
+			document.ApplySyntaxHighlight(ParseTokens())
 		End Sub
 
 		Private Function ParseTokens() As List(Of SyntaxHighlightToken)
 			Dim tokens As New List(Of SyntaxHighlightToken)()
 			Dim ranges() As DocumentRange = Nothing
-			' search for quotation marks
-			ranges = document.FindAll("'", SearchOptions.None)
-			For i As Integer = 0 To (ranges.Length \ 2) - 1
-				tokens.Add(New SyntaxHighlightToken(ranges(i * 2).Start.ToInt(), ranges(i * 2 + 1).Start.ToInt() - ranges(i * 2).Start.ToInt() + 1, stringSettings))
-			Next i
-			' search for keywords
-			For i As Integer = 0 To keywords.Length - 1
-				ranges = document.FindAll(keywords(i), SearchOptions.CaseSensitive Or SearchOptions.WholeWord)
 
-				For j As Integer = 0 To ranges.Length - 1
-					If Not IsRangeInTokens(ranges(j), tokens) Then
-						tokens.Add(New SyntaxHighlightToken(ranges(j).Start.ToInt(), ranges(j).Length, keywordSettings))
-					End If
-				Next j
+			' search for quotation marks
+			ranges = document.FindAll(_quotedString)
+			For i As Integer = 0 To ranges.Length - 1
+				tokens.Add(New SyntaxHighlightToken(ranges(i).Start.ToInt(), ranges(i).Length, stringSettings))
 			Next i
+
+			ranges = document.FindAll(_keywords)
+			For j As Integer = 0 To ranges.Length - 1
+				If Not IsRangeInTokens(ranges(j), tokens) Then
+					tokens.Add(New SyntaxHighlightToken(ranges(j).Start.ToInt(), ranges(j).Length, keywordSettings))
+				End If
+			Next j
+
 			' order tokens by their start position
 			tokens.Sort(New SyntaxHighlightTokenComparer())
 			' fill in gaps in document coverage
-			AddPlainTextTokens(tokens)
+			tokens = CombineWithPlainTextTokens(tokens)
 			Return tokens
 		End Function
-
-		Private Sub AddPlainTextTokens(ByVal tokens As List(Of SyntaxHighlightToken))
-			Dim count As Integer = tokens.Count
-			If count = 0 Then
-				tokens.Add(New SyntaxHighlightToken(0, document.Range.End.ToInt(), defaultSettings))
-				Return
+		Private Function CombineWithPlainTextTokens(ByVal tokens As List(Of SyntaxHighlightToken)) As List(Of SyntaxHighlightToken)
+			Dim result As New List(Of SyntaxHighlightToken)(tokens.Count * 2 + 1)
+			Dim documentStart As Integer = Me.document.Range.Start.ToInt()
+			Dim documentEnd As Integer = Me.document.Range.End.ToInt()
+			If tokens.Count = 0 Then
+				result.Add(CreateToken(documentStart, documentEnd, Color.Black))
+			Else
+				Dim firstToken As SyntaxHighlightToken = tokens(0)
+				If documentStart < firstToken.Start Then
+					result.Add(CreateToken(documentStart, firstToken.Start, Color.Black))
+				End If
+				result.Add(firstToken)
+				For i As Integer = 1 To tokens.Count - 1
+					Dim token As SyntaxHighlightToken = tokens(i)
+					Dim prevToken As SyntaxHighlightToken = tokens(i - 1)
+					If prevToken.End <> token.Start Then
+						result.Add(CreateToken(prevToken.End, token.Start, Color.Black))
+					End If
+					result.Add(token)
+				Next i
+				Dim lastToken As SyntaxHighlightToken = tokens(tokens.Count - 1)
+				If documentEnd > lastToken.End Then
+					result.Add(CreateToken(lastToken.End, documentEnd, Color.Black))
+				End If
 			End If
-			tokens.Insert(0, New SyntaxHighlightToken(0, tokens(0).Start, defaultSettings))
-			For i As Integer = 1 To count - 1
-				tokens.Insert(i * 2, New SyntaxHighlightToken(tokens(i * 2 - 1).End, tokens(i * 2).Start - tokens(i * 2 - 1).End, defaultSettings))
-			Next i
-			tokens.Add(New SyntaxHighlightToken(tokens(count * 2 - 1).End, document.Range.End.ToInt() - tokens(count * 2 - 1).End, defaultSettings))
-		End Sub
+			Return result
+		End Function
+		Private Function CreateToken(ByVal start As Integer, ByVal [end] As Integer, ByVal foreColor As Color) As SyntaxHighlightToken
+			Dim properties As New SyntaxHighlightProperties()
+			properties.ForeColor = foreColor
+			Return New SyntaxHighlightToken(start, [end] - start, properties)
+		End Function
 
 		Private Function IsRangeInTokens(ByVal range As DocumentRange, ByVal tokens As List(Of SyntaxHighlightToken)) As Boolean
 			Return tokens.Any(Function(t) IsIntersect(range, t))
@@ -77,16 +103,7 @@ Namespace RichEditSyntaxSample
 			End If
 			Return False
 		End Function
-		#End Region ' #parsetokens
 
-		#Region "#ISyntaxHighlightServiceMembers"
-		Public Sub ForceExecute() Implements ISyntaxHighlightService.ForceExecute
-			Execute()
-		End Sub
-		Public Sub Execute() Implements ISyntaxHighlightService.Execute
-			document.ApplySyntaxHighlight(ParseTokens())
-		End Sub
-		#End Region ' #ISyntaxHighlightServiceMembers
 	End Class
 
 	#Region "#SyntaxHighlightTokenComparer"

@@ -5,68 +5,92 @@ using DevExpress.Office.Utils;
 using DevExpress.XtraRichEdit.API.Native;
 using DevExpress.XtraRichEdit.Services;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace RichEditSyntaxSample
 {
     public class CustomSyntaxHighlightService : ISyntaxHighlightService
     {
-        #region #parsetokens
         readonly Document document;
-        SyntaxHighlightProperties defaultSettings = new SyntaxHighlightProperties() { ForeColor = Color.Black };
         SyntaxHighlightProperties keywordSettings = new SyntaxHighlightProperties() { ForeColor = Color.Blue };
-        SyntaxHighlightProperties stringSettings = new SyntaxHighlightProperties() { ForeColor = Color.Green };
+        SyntaxHighlightProperties stringSettings = new SyntaxHighlightProperties() { ForeColor = Color.Red };
 
-        string[] keywords = new string[] {
-                "INSERT", "SELECT", "CREATE", "TABLE", "USE", "IDENTITY", "ON", "OFF", "NOT", "NULL", "WITH", "SET" };
+        Regex _keywords;
+        Regex _quotedString = new Regex(@"'([^']|'')*'");
 
         public CustomSyntaxHighlightService(Document document)
         {
             this.document = document;
+            string[] keywords = { "INSERT", "SELECT", "CREATE", "TABLE", "USE", "IDENTITY", "ON", "OFF", "NOT", "NULL", "WITH", "SET", "GO", "DECLARE", "EXECUTE", "NVARCHAR", "FROM", "INTO", "VALUES" };
+            this._keywords = new Regex(@"\b(" + string.Join("|", keywords.Select(w => Regex.Escape(w))) + @")\b");
+        }
+        public void ForceExecute()
+        {
+            Execute();
+        }
+        public void Execute()
+        {
+            document.ApplySyntaxHighlight(ParseTokens());
         }
 
         private List<SyntaxHighlightToken> ParseTokens()
         {
             List<SyntaxHighlightToken> tokens = new List<SyntaxHighlightToken>();
             DocumentRange[] ranges = null;
-            // search for quotation marks
-            ranges = document.FindAll("'", SearchOptions.None);
-            for (int i = 0; i < ranges.Length / 2; i++)
-            {
-                tokens.Add(new SyntaxHighlightToken(ranges[i * 2].Start.ToInt(),
-                    ranges[i * 2 + 1].Start.ToInt() - ranges[i * 2].Start.ToInt() + 1, stringSettings));
-            }
-            // search for keywords
-            for (int i = 0; i < keywords.Length; i++)
-            {
-                ranges = document.FindAll(keywords[i], SearchOptions.CaseSensitive | SearchOptions.WholeWord);
 
-                for (int j = 0; j < ranges.Length; j++)
-                {
-                    if (!IsRangeInTokens(ranges[j], tokens))
-                        tokens.Add(new SyntaxHighlightToken(ranges[j].Start.ToInt(), ranges[j].Length, keywordSettings));
-                }
+            // search for quotation marks
+            ranges = document.FindAll(_quotedString);
+            for (int i = 0; i < ranges.Length; i++)
+            {
+                tokens.Add(new SyntaxHighlightToken(ranges[i].Start.ToInt(),
+                    ranges[i].Length, stringSettings));
             }
+
+            ranges = document.FindAll(_keywords);
+            for (int j = 0; j < ranges.Length; j++)
+            {
+                if (!IsRangeInTokens(ranges[j], tokens))
+                    tokens.Add(new SyntaxHighlightToken(ranges[j].Start.ToInt(), ranges[j].Length, keywordSettings));
+            }
+
             // order tokens by their start position
             tokens.Sort(new SyntaxHighlightTokenComparer());
             // fill in gaps in document coverage
-            AddPlainTextTokens(tokens);
+            tokens = CombineWithPlainTextTokens(tokens);
             return tokens;
         }
-
-        private void AddPlainTextTokens(List<SyntaxHighlightToken> tokens)
+        List<SyntaxHighlightToken> CombineWithPlainTextTokens(List<SyntaxHighlightToken> tokens)
         {
-            int count = tokens.Count;
-            if (count == 0)
+            List<SyntaxHighlightToken> result = new List<SyntaxHighlightToken>(tokens.Count * 2 + 1);
+            int documentStart = this.document.Range.Start.ToInt();
+            int documentEnd = this.document.Range.End.ToInt();
+            if (tokens.Count == 0)
+                result.Add(CreateToken(documentStart, documentEnd, Color.Black));
+            else
             {
-                tokens.Add(new SyntaxHighlightToken(0, document.Range.End.ToInt(), defaultSettings));
-                return;
+                SyntaxHighlightToken firstToken = tokens[0];
+                if (documentStart < firstToken.Start)
+                    result.Add(CreateToken(documentStart, firstToken.Start, Color.Black));
+                result.Add(firstToken);
+                for (int i = 1; i < tokens.Count; i++)
+                {
+                    SyntaxHighlightToken token = tokens[i];
+                    SyntaxHighlightToken prevToken = tokens[i - 1];
+                    if (prevToken.End != token.Start)
+                        result.Add(CreateToken(prevToken.End, token.Start, Color.Black));
+                    result.Add(token);
+                }
+                SyntaxHighlightToken lastToken = tokens[tokens.Count - 1];
+                if (documentEnd > lastToken.End)
+                    result.Add(CreateToken(lastToken.End, documentEnd, Color.Black));
             }
-            tokens.Insert(0, new SyntaxHighlightToken(0, tokens[0].Start, defaultSettings));
-            for (int i = 1; i < count; i++)
-            {
-                tokens.Insert(i * 2, new SyntaxHighlightToken(tokens[i * 2 - 1].End, tokens[i * 2].Start - tokens[i * 2 - 1].End, defaultSettings));
-            }
-            tokens.Add(new SyntaxHighlightToken(tokens[count * 2 - 1].End, document.Range.End.ToInt() - tokens[count * 2 - 1].End, defaultSettings));
+            return result;
+        }
+        SyntaxHighlightToken CreateToken(int start, int end, Color foreColor)
+        {
+            SyntaxHighlightProperties properties = new SyntaxHighlightProperties();
+            properties.ForeColor = foreColor;
+            return new SyntaxHighlightToken(start, end - start, properties);
         }
 
         private bool IsRangeInTokens(DocumentRange range, List<SyntaxHighlightToken> tokens)
@@ -85,18 +109,7 @@ namespace RichEditSyntaxSample
                 return true;
             return false;
         }
-        #endregion #parsetokens
 
-        #region #ISyntaxHighlightServiceMembers
-        public void ForceExecute()
-        {
-            Execute();
-        }
-        public void Execute()
-        {
-            document.ApplySyntaxHighlight(ParseTokens());
-        }
-        #endregion #ISyntaxHighlightServiceMembers
     }
 
     #region #SyntaxHighlightTokenComparer
