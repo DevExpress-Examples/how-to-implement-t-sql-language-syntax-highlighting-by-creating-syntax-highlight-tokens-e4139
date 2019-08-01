@@ -14,46 +14,58 @@ Namespace RichEditSyntaxSample
 		Private ReadOnly document As Document
 		Private keywordSettings As New SyntaxHighlightProperties() With {.ForeColor = Color.Blue}
 		Private stringSettings As New SyntaxHighlightProperties() With {.ForeColor = Color.Red}
+        Private commentSettings As New SyntaxHighlightProperties() With {.ForeColor = Color.Green}
 
-		Private _keywords As Regex
-		Private _quotedString As New Regex("'([^']|'')*'")
+        Private _keywords As Regex
+        Private _quotedString As New Regex("'([^']|'')*'")
+        Private _commentString As Regex
 
-		Public Sub New(ByVal document As Document)
+        Public Sub New(ByVal document As Document)
 			Me.document = document
 			Dim keywords() As String = { "INSERT", "SELECT", "CREATE", "TABLE", "USE", "IDENTITY", "ON", "OFF", "NOT", "NULL", "WITH", "SET", "GO", "DECLARE", "EXECUTE", "NVARCHAR", "FROM", "INTO", "VALUES" }
-			Me._keywords = New Regex("\b(" & String.Join("|", keywords.Select(Function(w) Regex.Escape(w))) & ")\b")
-		End Sub
-		Public Sub ForceExecute()
-			Execute()
-		End Sub
-		Public Sub Execute()
-			document.ApplySyntaxHighlight(ParseTokens())
-		End Sub
+            Me._keywords = New Regex("\b(" & String.Join("|", keywords.Select(Function(w) Regex.Escape(w))) & ")\b")
+            Me._commentString = New Regex("(/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/)")
+        End Sub
 
-		Private Function ParseTokens() As List(Of SyntaxHighlightToken)
-			Dim tokens As New List(Of SyntaxHighlightToken)()
-			Dim ranges() As DocumentRange = Nothing
+        Public Sub ForceExecute() Implements ISyntaxHighlightService.ForceExecute
+            Execute()
+        End Sub
 
-			' search for quotation marks
-			ranges = document.FindAll(_quotedString)
-			For i As Integer = 0 To ranges.Length - 1
-				tokens.Add(New SyntaxHighlightToken(ranges(i).Start.ToInt(), ranges(i).Length, stringSettings))
-			Next i
+        Private Sub Execute() Implements ISyntaxHighlightService.Execute
+            document.ApplySyntaxHighlight(ParseTokens())
+        End Sub
 
-			ranges = document.FindAll(_keywords)
-			For j As Integer = 0 To ranges.Length - 1
-				If Not IsRangeInTokens(ranges(j), tokens) Then
-					tokens.Add(New SyntaxHighlightToken(ranges(j).Start.ToInt(), ranges(j).Length, keywordSettings))
-				End If
-			Next j
+        Private Function ParseTokens() As List(Of SyntaxHighlightToken)
+            Dim tokens As New List(Of SyntaxHighlightToken)()
+            Dim ranges() As DocumentRange = Nothing
 
-			' order tokens by their start position
-			tokens.Sort(New SyntaxHighlightTokenComparer())
-			' fill in gaps in document coverage
-			tokens = CombineWithPlainTextTokens(tokens)
-			Return tokens
-		End Function
-		Private Function CombineWithPlainTextTokens(ByVal tokens As List(Of SyntaxHighlightToken)) As List(Of SyntaxHighlightToken)
+            ' search for quotation marks
+            ranges = document.FindAll(_quotedString)
+            For i As Integer = 0 To ranges.Length - 1
+                tokens.Add(New SyntaxHighlightToken(ranges(i).Start.ToInt(), ranges(i).Length, stringSettings))
+            Next i
+
+            ranges = document.FindAll(_keywords)
+            For j As Integer = 0 To ranges.Length - 1
+                If Not IsRangeInTokens(ranges(j), tokens) Then
+                    tokens.Add(New SyntaxHighlightToken(ranges(j).Start.ToInt(), ranges(j).Length, keywordSettings))
+                End If
+            Next j
+
+            ranges = document.FindAll(_commentString)
+            For j As Integer = 0 To ranges.Length - 1
+                If Not IsRangeInTokens(ranges(j), tokens) Then
+                    tokens.Add(New SyntaxHighlightToken(ranges(j).Start.ToInt(), ranges(j).Length, commentSettings))
+                End If
+            Next j
+
+            ' order tokens by their start position
+            tokens.Sort(New SyntaxHighlightTokenComparer())
+            ' fill in gaps in document coverage
+            tokens = CombineWithPlainTextTokens(tokens)
+            Return tokens
+        End Function
+        Private Function CombineWithPlainTextTokens(ByVal tokens As List(Of SyntaxHighlightToken)) As List(Of SyntaxHighlightToken)
 			Dim result As New List(Of SyntaxHighlightToken)(tokens.Count * 2 + 1)
 			Dim documentStart As Integer = Me.document.Range.Start.ToInt()
 			Dim documentEnd As Integer = Me.document.Range.End.ToInt()

@@ -14,15 +14,20 @@ namespace RichEditSyntaxSample
         readonly Document document;
         SyntaxHighlightProperties keywordSettings = new SyntaxHighlightProperties() { ForeColor = Color.Blue };
         SyntaxHighlightProperties stringSettings = new SyntaxHighlightProperties() { ForeColor = Color.Red };
+        SyntaxHighlightProperties commentSettings = new SyntaxHighlightProperties() { ForeColor = Color.Green };
+
+
 
         Regex _keywords;
         Regex _quotedString = new Regex(@"'([^']|'')*'");
+        Regex _commentedString;
 
         public CustomSyntaxHighlightService(Document document)
         {
             this.document = document;
             string[] keywords = { "INSERT", "SELECT", "CREATE", "TABLE", "USE", "IDENTITY", "ON", "OFF", "NOT", "NULL", "WITH", "SET", "GO", "DECLARE", "EXECUTE", "NVARCHAR", "FROM", "INTO", "VALUES" };
             this._keywords = new Regex(@"\b(" + string.Join("|", keywords.Select(w => Regex.Escape(w))) + @")\b");
+            this._commentedString = new Regex(@"(/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/)");
         }
         public void ForceExecute()
         {
@@ -52,6 +57,14 @@ namespace RichEditSyntaxSample
                 if (!IsRangeInTokens(ranges[j], tokens))
                     tokens.Add(new SyntaxHighlightToken(ranges[j].Start.ToInt(), ranges[j].Length, keywordSettings));
             }
+
+            ranges = document.FindAll(_commentedString);
+            for (int j = 0; j < ranges.Length; j++)
+            {
+                if (!IsRangeInTokens(ranges[j], tokens))
+                    tokens.Add(new SyntaxHighlightToken(ranges[j].Start.ToInt(), ranges[j].Length, commentSettings));
+            }
+
 
             // order tokens by their start position
             tokens.Sort(new SyntaxHighlightTokenComparer());
