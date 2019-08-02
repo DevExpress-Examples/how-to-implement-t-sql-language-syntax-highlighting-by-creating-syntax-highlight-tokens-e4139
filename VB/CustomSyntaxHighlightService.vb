@@ -22,10 +22,10 @@ Namespace RichEditSyntaxSample
 			Dim keywords() As String = { "INSERT", "SELECT", "CREATE", "TABLE", "USE", "IDENTITY", "ON", "OFF", "NOT", "NULL", "WITH", "SET", "GO", "DECLARE", "EXECUTE", "NVARCHAR", "FROM", "INTO", "VALUES", "WHERE", "AND" }
 			Me._keywords = New Regex("\b(" & String.Join("|", keywords.Select(Function(w) Regex.Escape(w))) & ")\b")
 		End Sub
-		Public Sub ForceExecute()
+		Public Sub ForceExecute() Implements ISyntaxHighlightService.ForceExecute
 			Execute()
 		End Sub
-		Public Sub Execute()
+		Public Sub Execute() Implements ISyntaxHighlightService.Execute
 			Dim tSqltokens As List(Of SyntaxHighlightToken) = ParseTokens()
 			document.ApplySyntaxHighlight(tSqltokens)
 		End Sub
