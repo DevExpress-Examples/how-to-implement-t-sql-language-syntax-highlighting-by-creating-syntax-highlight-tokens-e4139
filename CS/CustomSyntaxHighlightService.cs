@@ -12,22 +12,16 @@ namespace RichEditSyntaxSample
     public class CustomSyntaxHighlightService : ISyntaxHighlightService
     {
         readonly Document document;
-        SyntaxHighlightProperties keywordSettings = new SyntaxHighlightProperties() { ForeColor = Color.Blue };
-        SyntaxHighlightProperties stringSettings = new SyntaxHighlightProperties() { ForeColor = Color.Red };
-        SyntaxHighlightProperties commentSettings = new SyntaxHighlightProperties() { ForeColor = Color.Green };
-
-
 
         Regex _keywords;
         Regex _quotedString = new Regex(@"'([^']|'')*'");
-        Regex _commentedString;
+        Regex _commentedString = new Regex(@"(/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/)");
 
         public CustomSyntaxHighlightService(Document document)
         {
             this.document = document;
-            string[] keywords = { "INSERT", "SELECT", "CREATE", "TABLE", "USE", "IDENTITY", "ON", "OFF", "NOT", "NULL", "WITH", "SET", "GO", "DECLARE", "EXECUTE", "NVARCHAR", "FROM", "INTO", "VALUES" };
+            string[] keywords = { "INSERT", "SELECT", "CREATE", "TABLE", "USE", "IDENTITY", "ON", "OFF", "NOT", "NULL", "WITH", "SET", "GO", "DECLARE", "EXECUTE", "NVARCHAR", "FROM", "INTO", "VALUES", "WHERE", "AND" };
             this._keywords = new Regex(@"\b(" + string.Join("|", keywords.Select(w => Regex.Escape(w))) + @")\b");
-            this._commentedString = new Regex(@"(/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/)");
         }
         public void ForceExecute()
         {
@@ -35,7 +29,8 @@ namespace RichEditSyntaxSample
         }
         public void Execute()
         {
-            document.ApplySyntaxHighlight(ParseTokens());
+            List<SyntaxHighlightToken> tSqltokens = ParseTokens();
+            document.ApplySyntaxHighlight(tSqltokens);
         }
 
         private List<SyntaxHighlightToken> ParseTokens()
@@ -43,35 +38,38 @@ namespace RichEditSyntaxSample
             List<SyntaxHighlightToken> tokens = new List<SyntaxHighlightToken>();
             DocumentRange[] ranges = null;
 
-            // search for quotation marks
+            // search for quoted strings
             ranges = document.FindAll(_quotedString);
             for (int i = 0; i < ranges.Length; i++)
             {
-                tokens.Add(new SyntaxHighlightToken(ranges[i].Start.ToInt(),
-                    ranges[i].Length, stringSettings));
+                tokens.Add(CreateToken(ranges[i].Start.ToInt(),ranges[i].End.ToInt(), Color.Red));
             }
 
+            //Extract all keywords
             ranges = document.FindAll(_keywords);
             for (int j = 0; j < ranges.Length; j++)
             {
                 if (!IsRangeInTokens(ranges[j], tokens))
-                    tokens.Add(new SyntaxHighlightToken(ranges[j].Start.ToInt(), ranges[j].Length, keywordSettings));
+                    tokens.Add(CreateToken(ranges[j].Start.ToInt(), ranges[j].End.ToInt(), Color.Blue));
             }
 
+            //Find all comments
             ranges = document.FindAll(_commentedString);
             for (int j = 0; j < ranges.Length; j++)
             {
                 if (!IsRangeInTokens(ranges[j], tokens))
-                    tokens.Add(new SyntaxHighlightToken(ranges[j].Start.ToInt(), ranges[j].Length, commentSettings));
+                    tokens.Add(CreateToken(ranges[j].Start.ToInt(), ranges[j].End.ToInt(), Color.Green));
             }
-
-
+            
             // order tokens by their start position
             tokens.Sort(new SyntaxHighlightTokenComparer());
+
             // fill in gaps in document coverage
             tokens = CombineWithPlainTextTokens(tokens);
             return tokens;
         }
+
+        //Parse the remaining text into tokens:
         List<SyntaxHighlightToken> CombineWithPlainTextTokens(List<SyntaxHighlightToken> tokens)
         {
             List<SyntaxHighlightToken> result = new List<SyntaxHighlightToken>(tokens.Count * 2 + 1);
@@ -99,6 +97,8 @@ namespace RichEditSyntaxSample
             }
             return result;
         }
+
+        //Create a token from the retrieved range and specify its forecolor
         SyntaxHighlightToken CreateToken(int start, int end, Color foreColor)
         {
             SyntaxHighlightProperties properties = new SyntaxHighlightProperties();
@@ -106,6 +106,7 @@ namespace RichEditSyntaxSample
             return new SyntaxHighlightToken(start, end - start, properties);
         }
 
+        //Check whether tokens intersect each other
         private bool IsRangeInTokens(DocumentRange range, List<SyntaxHighlightToken> tokens)
         {
             return tokens.Any(t => IsIntersect(range, t));
@@ -122,10 +123,9 @@ namespace RichEditSyntaxSample
                 return true;
             return false;
         }
-
     }
 
-    #region #SyntaxHighlightTokenComparer
+    //Compare token's initial positions to sort them
     public class SyntaxHighlightTokenComparer : IComparer<SyntaxHighlightToken>
     {
         public int Compare(SyntaxHighlightToken x, SyntaxHighlightToken y)
@@ -133,6 +133,5 @@ namespace RichEditSyntaxSample
             return x.Start - y.Start;
         }
     }
-    #endregion #SyntaxHighlightTokenComparer
 }
 
