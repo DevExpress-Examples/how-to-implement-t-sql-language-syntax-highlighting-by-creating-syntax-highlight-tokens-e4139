@@ -36,17 +36,16 @@ namespace RichEditSyntaxSample
         private List<SyntaxHighlightToken> ParseTokens()
         {
             List<SyntaxHighlightToken> tokens = new List<SyntaxHighlightToken>();
-            DocumentRange[] ranges = null;
 
             // search for quoted strings
-            ranges = document.FindAll(_quotedString);
+            DocumentRange[] ranges = document.FindAll(_quotedString).GetAsFrozen() as DocumentRange[];
             for (int i = 0; i < ranges.Length; i++)
             {
                 tokens.Add(CreateToken(ranges[i].Start.ToInt(),ranges[i].End.ToInt(), Color.Red));
             }
 
             //Extract all keywords
-            ranges = document.FindAll(_keywords);
+            ranges = document.FindAll(_keywords).GetAsFrozen() as DocumentRange[];
             for (int j = 0; j < ranges.Length; j++)
             {
                 if (!IsRangeInTokens(ranges[j], tokens))
@@ -54,7 +53,7 @@ namespace RichEditSyntaxSample
             }
 
             //Find all comments
-            ranges = document.FindAll(_commentedString);
+            ranges = document.FindAll(_commentedString).GetAsFrozen() as DocumentRange[];
             for (int j = 0; j < ranges.Length; j++)
             {
                 if (!IsRangeInTokens(ranges[j], tokens))

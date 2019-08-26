@@ -34,23 +34,23 @@ Namespace RichEditSyntaxSample
 			Dim tokens As New List(Of SyntaxHighlightToken)()
 			Dim ranges() As DocumentRange = Nothing
 
-			' search for quoted strings
-			ranges = document.FindAll(_quotedString)
-			For i As Integer = 0 To ranges.Length - 1
+            ' search for quoted strings
+            ranges = TryCast(document.FindAll(_quotedString).GetAsFrozen(), DocumentRange())
+            For i As Integer = 0 To ranges.Length - 1
 				tokens.Add(CreateToken(ranges(i).Start.ToInt(),ranges(i).End.ToInt(), Color.Red))
 			Next i
 
-			'Extract all keywords
-			ranges = document.FindAll(_keywords)
-			For j As Integer = 0 To ranges.Length - 1
+            'Extract all keywords
+            ranges = TryCast(document.FindAll(_keywords).GetAsFrozen(), DocumentRange())
+            For j As Integer = 0 To ranges.Length - 1
 				If Not IsRangeInTokens(ranges(j), tokens) Then
 					tokens.Add(CreateToken(ranges(j).Start.ToInt(), ranges(j).End.ToInt(), Color.Blue))
 				End If
 			Next j
 
-			'Find all comments
-			ranges = document.FindAll(_commentedString)
-			For j As Integer = 0 To ranges.Length - 1
+            'Find all comments
+            ranges = TryCast(document.FindAll(_commentedString).GetAsFrozen(), DocumentRange())
+            For j As Integer = 0 To ranges.Length - 1
 				If Not IsRangeInTokens(ranges(j), tokens) Then
 					tokens.Add(CreateToken(ranges(j).Start.ToInt(), ranges(j).End.ToInt(), Color.Green))
 				End If
