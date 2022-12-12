@@ -3,7 +3,7 @@
 [![](https://img.shields.io/badge/Open_in_DevExpress_Support_Center-FF7200?style=flat-square&logo=DevExpress&logoColor=white)](https://supportcenter.devexpress.com/ticket/details/E4139)
 [![](https://img.shields.io/badge/📖_How_to_use_DevExpress_Examples-e9f6fc?style=flat-square)](https://docs.devexpress.com/GeneralInformation/403183)
 <!-- default badges end -->
-# How to Use Tokens to Implement T-SQL Language Syntax Highlight
+# Rich Text Editor for WinForms - How to Use Tokens to Implement T-SQL Language Syntax Highlight
 
 The RichEditControl allows you to create a custom `ISyntaxHighlightService` implementation to display text in different colors and fonts according to the category of syntax sub-elements. These include keywords, comments, control-flow statements, variables, and other elements. This example describes how to highlight the T-SQL syntax. Note that we do not use the <strong>DevExpress.CodeParser</strong> library in this example.
 
