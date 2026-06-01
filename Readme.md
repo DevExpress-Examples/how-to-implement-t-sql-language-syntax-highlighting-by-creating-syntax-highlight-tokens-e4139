@@ -31,6 +31,7 @@ The RichEditControl allows you to create a custom `ISyntaxHighlightService` impl
 # More Examples
 
 * [Rich Text Editor for WinForms - Implement ISyntaxHighlightService to Highlight C# and VB Code Syntax](https://github.com/DevExpress-Examples/rich-text-editor-highlight-syntax)
+* [WinForms Monaco-Based Code Editor](https://github.com/DevExpress-Examples/winforms-monaco-code-editor)
 <!-- feedback -->
 ## Does This Example Address Your Development Requirements/Objectives?
 
